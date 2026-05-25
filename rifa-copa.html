@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rifa Copa do Mundo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root {
+  --verde: #009c3b;
+  --amarelo: #ffdf00;
+  --azul: #002776;
+  --verde-escuro: #006b28;
+  --amarelo-escuro: #c8a800;
+  --bg: #001a0f;
+  --card: #022d14;
+  --card2: #03391a;
+  --texto: #e8f5e9;
+  --muted: #6aaf7a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  background-image: radial-gradient(ellipse at 10% 0%, #003d1a 0%, transparent 50%), radial-gradient(ellipse at 90% 100%, #001a50 0%, transparent 50%);
+  min-height: 100vh;
+  font-family: 'Barlow', sans-serif;
+  color: var(--texto);
+}
+
+/* HERO */
+.hero {
+  background: linear-gradient(135deg, var(--verde-escuro) 0%, var(--azul) 100%);
+  padding: 28px 20px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before { content:'⚽'; position:absolute; font-size:200px; opacity:0.05; top:-40px; right:-40px; transform:rotate(20deg); }
+.hero-badge { display:inline-block; background:var(--amarelo); color:var(--azul); font-family:'Bebas Neue',sans-serif; font-size:0.85rem; letter-spacing:0.2em; padding:4px 16px; border-radius:2px; margin-bottom:10px; }
+.hero h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(2.2rem,8vw,4rem); color:var(--amarelo); letter-spacing:0.08em; line-height:1; text-shadow:0 3px 20px rgba(0,0,0,0.5); }
+.premio-destaque { display:inline-flex; align-items:center; gap:10px; background:rgba(255,223,0,0.12); border:1px solid rgba(255,223,0,0.35); border-radius:8px; padding:10px 20px; margin-top:16px; font-weight:700; font-size:1.1rem; color:var(--amarelo); }
+
+/* STATS */
+.stats-row { display:flex; justify-content:center; background:var(--card); border-bottom:2px solid var(--verde-escuro); }
+.stat-item { flex:1; max-width:160px; text-align:center; padding:14px 8px; border-right:1px solid #0a4020; }
+.stat-item:last-child { border-right:none; }
+.stat-num { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--amarelo); line-height:1; }
+.stat-label { font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-top:2px; }
+
+/* PROGRESS */
+.progress-wrap { padding:16px 20px 8px; max-width:700px; margin:0 auto; }
+.progress-label { display:flex; justify-content:space-between; font-size:0.8rem; color:var(--muted); margin-bottom:6px; }
+.progress-bar { background:#0a3018; border-radius:99px; height:14px; overflow:hidden; border:1px solid #1a5030; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--verde) 0%,var(--amarelo) 100%); border-radius:99px; transition:width 0.6s ease; min-width:4px; }
+
+/* MAIN */
+.main { max-width:700px; margin:0 auto; padding:16px 12px 60px; }
+.section-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.1em; color:var(--amarelo); border-left:4px solid var(--verde); padding-left:10px; margin:20px 0 12px; }
+
+/* GRID */
+.grid { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+.nome-btn { background:var(--card2); border:1px solid #1a5030; border-radius:5px; padding:8px 3px; text-align:center; font-size:clamp(0.6rem,1.8vw,0.78rem); font-weight:600; color:var(--texto); cursor:pointer; transition:all 0.18s; position:relative; user-select:none; min-height:44px; display:flex; align-items:center; justify-content:center; }
+.nome-btn:hover:not(.ocupado):not(.pendente) { background:var(--verde); color:#fff; border-color:var(--verde); transform:scale(1.04); z-index:2; }
+.nome-btn.ocupado { background:linear-gradient(135deg,#003d1a,#002010); border-color:var(--verde); color:var(--verde); cursor:default; text-decoration:line-through; opacity:0.7; }
+.nome-btn.ocupado::after { content:'✓'; position:absolute; top:2px; right:4px; font-size:0.55rem; color:var(--verde); }
+.nome-btn.pendente { background:linear-gradient(135deg,#3d3000,#201a00); border-color:var(--amarelo-escuro); color:var(--amarelo); cursor:default; opacity:0.75; }
+.nome-btn.pendente::after { content:'⏳'; position:absolute; top:1px; right:3px; font-size:0.55rem; }
+.nome-btn.selecionado { background:var(--amarelo); color:var(--azul); border-color:var(--amarelo); font-weight:700; transform:scale(1.06); z-index:3; box-shadow:0 0 16px rgba(255,223,0,0.5); }
+
+/* LEGENDA */
+.legenda { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0 16px; font-size:0.75rem; color:var(--muted); }
+.leg-item { display:flex; align-items:center; gap:5px; }
+.leg-dot { width:12px; height:12px; border-radius:3px; border:1px solid; }
+.leg-dot.livre { background:var(--card2); border-color:#1a5030; }
+.leg-dot.sel { background:var(--amarelo); border-color:var(--amarelo); }
+.leg-dot.pend { background:#3d3000; border-color:var(--amarelo-escuro); }
+.leg-dot.pago { background:#003d1a; border-color:var(--verde); }
+
+/* PARTICIPANTES */
+.participantes-list { display:flex; flex-direction:column; gap:8px; }
+.part-item { background:var(--card2); border:1px solid #1a5030; border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.part-info { flex:1; }
+.part-nome-rifa { font-weight:700; color:var(--amarelo); font-size:0.95rem; }
+.part-comprador { font-size:0.8rem; color:var(--muted); margin-top:1px; }
+.part-status { font-size:0.72rem; font-weight:700; letter-spacing:0.08em; padding:3px 10px; border-radius:99px; }
+.part-status.pago { background:#003d1a; color:var(--verde); border:1px solid var(--verde); }
+.part-status.pend { background:#3d3000; color:var(--amarelo); border:1px solid var(--amarelo-escuro); }
+.empty-state { text-align:center; color:var(--muted); padding:20px; font-size:0.9rem; }
+
+/* MODAL CHECKOUT */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,10,5,0.88); z-index:100; align-items:flex-end; justify-content:center; }
+.overlay.open { display:flex; }
+.modal { background:var(--card); border:1px solid #1a5030; border-radius:16px 16px 0 0; padding:24px 20px 32px; width:100%; max-width:480px; max-height:92vh; overflow-y:auto; animation:slideUp 0.3s ease; }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; color:var(--amarelo); letter-spacing:0.1em; margin-bottom:4px; }
+.modal-nome-sel { background:rgba(255,223,0,0.1); border:1px solid rgba(255,223,0,0.3); border-radius:8px; padding:10px 14px; margin:12px 0; font-size:1.1rem; font-weight:700; color:var(--amarelo); text-align:center; }
+.modal-valor { text-align:center; font-size:2rem; font-family:'Bebas Neue',sans-serif; color:var(--verde); letter-spacing:0.05em; margin-bottom:16px; }
+.form-group { margin-bottom:12px; }
+.form-group label { display:block; font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+.form-group input { width:100%; background:#011a0a; border:1px solid #1a5030; border-radius:6px; padding:11px 14px; color:var(--texto); font-family:'Barlow',sans-serif; font-size:1rem; outline:none; transition:border-color 0.2s; }
+.form-group input:focus { border-color:var(--verde); }
+.form-group input::placeholder { color:#2a5c3a; }
+.pix-box { background:#011a0a; border:1px dashed var(--verde); border-radius:10px; padding:16px; text-align:center; margin:16px 0; }
+.pix-label { font-size:0.75rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.pix-chave { font-size:1rem; font-weight:700; color:var(--amarelo); word-break:break-all; margin-bottom:12px; }
+#qrcode { display:flex; justify-content:center; margin:10px 0; }
+.pix-copy { display:inline-block; background:var(--amarelo); color:var(--azul); font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:0.1em; padding:8px 24px; border-radius:6px; cursor:pointer; border:none; margin-top:4px; transition:opacity 0.2s; }
+.pix-copy:hover { opacity:0.85; }
+.btn-wpp { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:#25d366; color:#fff; font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:0.1em; padding:14px; border-radius:8px; border:none; cursor:pointer; margin-top:12px; transition:opacity 0.2s; }
+.btn-wpp:hover { opacity:0.88; }
+.btn-fechar { width:100%; background:transparent; border:1px solid #1a5030; color:var(--muted); font-family:'Barlow',sans-serif; font-size:0.9rem; padding:10px; border-radius:8px; cursor:pointer; margin-top:8px; transition:all 0.2s; }
+.btn-fechar:hover { border-color:var(--verde); color:var(--texto); }
+
+/* ===== PAINEL ADMIN ===== */
+.admin-overlay { display:none; position:fixed; inset:0; background:rgba(0,5,2,0.95); z-index:200; flex-direction:column; align-items:center; padding:20px 12px 40px; overflow-y:auto; }
+.admin-overlay.open { display:flex; }
+.admin-header { width:100%; max-width:680px; display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.admin-title { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--amarelo); letter-spacing:0.15em; }
+.btn-fechar-admin { background:transparent; border:1px solid #1a5030; color:var(--muted); padding:8px 18px; border-radius:6px; cursor:pointer; font-family:'Barlow',sans-serif; font-size:0.9rem; transition:all 0.2s; }
+.btn-fechar-admin:hover { border-color:var(--verde); color:#fff; }
+.admin-body { width:100%; max-width:680px; }
+
+/* Login admin */
+.admin-login { background:var(--card); border:1px solid #1a5030; border-radius:12px; padding:30px 24px; text-align:center; max-width:340px; margin:60px auto; }
+.admin-login h2 { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; color:var(--amarelo); letter-spacing:0.1em; margin-bottom:16px; }
+.admin-login input { width:100%; background:#011a0a; border:1px solid #1a5030; border-radius:6px; padding:12px 14px; color:var(--texto); font-family:'Barlow',sans-serif; font-size:1rem; outline:none; margin-bottom:12px; text-align:center; letter-spacing:0.2em; }
+.admin-login input:focus { border-color:var(--verde); }
+.btn-entrar { width:100%; background:var(--verde); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:0.1em; padding:12px; border-radius:8px; border:none; cursor:pointer; transition:opacity 0.2s; }
+.btn-entrar:hover { opacity:0.85; }
+
+/* Sorteio */
+.sorteio-card { background:var(--card); border:1px solid #1a5030; border-radius:12px; padding:20px; margin-bottom:16px; text-align:center; }
+.sorteio-card h3 { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; color:var(--amarelo); letter-spacing:0.1em; margin-bottom:14px; }
+.sorteio-resultado { font-family:'Bebas Neue',sans-serif; font-size:clamp(2rem,8vw,3.5rem); color:var(--amarelo); min-height:1.2em; text-shadow:0 0 30px rgba(255,223,0,0.5); transition:all 0.2s; letter-spacing:0.05em; }
+.sorteio-resultado.animando { animation:pisca 0.08s infinite; }
+@keyframes pisca { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.btn-sortear { background:linear-gradient(135deg,var(--verde),var(--azul)); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:0.15em; padding:14px 40px; border-radius:8px; border:none; cursor:pointer; margin-top:14px; transition:opacity 0.2s; box-shadow:0 4px 20px rgba(0,156,59,0.4); }
+.btn-sortear:hover { opacity:0.88; }
+.sorteio-historico { margin-top:12px; font-size:0.8rem; color:var(--muted); }
+
+/* Pendentes admin */
+.admin-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; color:var(--amarelo); border-left:4px solid var(--verde); padding-left:10px; margin:20px 0 10px; letter-spacing:0.1em; }
+.admin-list { display:flex; flex-direction:column; gap:8px; }
+.admin-item { background:var(--card2); border:1px solid #1a5030; border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.admin-item-info { flex:1; }
+.admin-item-nome { font-weight:700; color:var(--amarelo); font-size:0.95rem; }
+.admin-item-dados { font-size:0.8rem; color:var(--muted); margin-top:2px; }
+.btn-confirmar { background:var(--verde); color:#fff; border:none; border-radius:5px; padding:6px 14px; font-weight:700; font-size:0.8rem; cursor:pointer; transition:opacity 0.2s; white-space:nowrap; }
+.btn-confirmar:hover { opacity:0.8; }
+.btn-recusar { background:#c0392b; color:#fff; border:none; border-radius:5px; padding:6px 14px; font-weight:700; font-size:0.8rem; cursor:pointer; transition:opacity 0.2s; white-space:nowrap; }
+.btn-recusar:hover { opacity:0.8; }
+
+/* TOAST */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--amarelo); color:var(--azul); font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:0.1em; padding:12px 28px; border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,0.5); transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); z-index:999; pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+@media(max-width:400px) { .grid{grid-template-columns:repeat(4,1fr)} .nome-btn{font-size:0.6rem;min-height:38px} }
+</style>
+</head>
+<body>
+
+<!-- ===== PÁGINA PÚBLICA ===== -->
+<div id="paginaPublica">
+
+  <div class="hero">
+    <div class="hero-badge">⚽ Rifa Oficial</div>
+    <h1>Copa do Mundo</h1>
+    <div class="premio-destaque">🏆 Prêmio: Camisa da Seleção Brasileira</div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-num" id="statTotal">100</div><div class="stat-label">Cotas</div></div>
+    <div class="stat-item"><div class="stat-num" id="statVendidas">0</div><div class="stat-label">Vendidas</div></div>
+    <div class="stat-item"><div class="stat-num" id="statLivres">100</div><div class="stat-label">Livres</div></div>
+
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label"><span id="progressPct">0% vendido</span><span>Meta: R$ 1.000</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="main">
+    <div class="section-title">🎯 Escolha seu Nome</div>
+    <div class="legenda">
+      <div class="leg-item"><div class="leg-dot livre"></div> Disponível</div>
+      <div class="leg-item"><div class="leg-dot pend"></div> Aguardando pagto</div>
+      <div class="leg-item"><div class="leg-dot pago"></div> Pago ✓</div>
+    </div>
+    <div class="grid" id="nomeGrid"></div>
+
+    <div class="section-title" style="margin-top:28px">👥 Participantes</div>
+    <div id="participantesList" class="participantes-list">
+      <div class="empty-state">Nenhuma cota vendida ainda. Seja o primeiro! 🎯</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== MODAL CHECKOUT ===== -->
+<div class="overlay" id="overlay" onclick="fecharModalOverlay(event)">
+  <div class="modal">
+    <div class="modal-title">⚽ Reservar Cota</div>
+    <p style="font-size:0.85rem;color:var(--muted)">Você escolheu o nome:</p>
+    <div class="modal-nome-sel" id="modalNomeSel">—</div>
+    <div class="modal-valor">R$ 10,00</div>
+    <div class="form-group">
+      <label>Seu nome completo *</label>
+      <input type="text" id="inputNome" placeholder="Ex: João da Silva">
+    </div>
+    <div class="form-group">
+      <label>Seu WhatsApp *</label>
+      <input type="tel" id="inputWpp" placeholder="(11) 99999-9999">
+    </div>
+    <div class="pix-box">
+      <div class="pix-label">Pague via Pix</div>
+      <div class="pix-chave">andersonluiz.negocios@gmail.com</div>
+      <div id="qrcode"></div>
+      <button class="pix-copy" onclick="copiarPix()">📋 Copiar Chave Pix</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);text-align:center;margin:8px 0">
+      Após pagar, clique abaixo para enviar o comprovante no WhatsApp. ✅
+    </p>
+    <button class="btn-wpp" onclick="confirmarReserva()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.854L0 24l6.334-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.67-.493-5.215-1.357l-.374-.217-3.758.896.944-3.666-.237-.387A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      Enviar Comprovante no WhatsApp
+    </button>
+    <button class="btn-fechar" onclick="fecharModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ===== PAINEL ADMIN ===== -->
+<div class="admin-overlay" id="adminOverlay">
+
+  <!-- LOGIN -->
+  <div id="adminLogin" class="admin-login">
+    <h2>🔐 Área Admin</h2>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Digite a senha para continuar</p>
+    <input type="password" id="adminSenhaInput" placeholder="••••••••" onkeydown="if(event.key==='Enter')loginAdmin()">
+    <button class="btn-entrar" onclick="loginAdmin()">Entrar</button>
+    <button class="btn-fechar-admin" style="width:100%;margin-top:10px" onclick="fecharAdmin()">Cancelar</button>
+  </div>
+
+  <!-- PAINEL LOGADO -->
+  <div id="adminPainel" style="display:none;width:100%;max-width:680px">
+    <div class="admin-header">
+      <div class="admin-title">⚙️ Painel Admin</div>
+      <button class="btn-fechar-admin" onclick="fecharAdmin()">✕ Fechar</button>
+    </div>
+
+    <!-- CONFIG SUPABASE -->
+    <div style="background:var(--card);border:1px solid #8a6a00;border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--amarelo);letter-spacing:0.1em;margin-bottom:4px">🗄️ Banco de Dados (Supabase)</div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">Cole aqui as credenciais do Supabase para os dados ficarem salvos na nuvem e não apagarem.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input type="text" id="sbUrl" placeholder="URL do projeto: https://xxxxx.supabase.co" style="background:#011a0a;border:1px solid #1a5030;border-radius:6px;padding:10px 14px;color:var(--amarelo);font-family:'Barlow',sans-serif;font-size:0.9rem;outline:none;width:100%">
+        <input type="text" id="sbKey" placeholder="Chave anon public" style="background:#011a0a;border:1px solid #1a5030;border-radius:6px;padding:10px 14px;color:var(--amarelo);font-family:'Barlow',sans-serif;font-size:0.9rem;outline:none;width:100%">
+        <div style="display:flex;gap:8px">
+          <button onclick="salvarSupabase()" style="flex:1;background:var(--verde);color:#fff;border:none;border-radius:6px;padding:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.1em;cursor:pointer">💾 Salvar Configuração</button>
+          <div id="sbStatus" style="display:flex;align-items:center;font-size:0.8rem;color:var(--muted);padding:0 8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ZERAR RIFA -->
+    <div style="background:#1a0000;border:1px solid #c0392b;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#e74c3c;letter-spacing:0.1em">🗑️ Zerar Rifa</div>
+        <div style="font-size:0.8rem;color:#8a4040;margin-top:2px">Apaga TODOS os registros. Ação irreversível.</div>
+      </div>
+      <button onclick="zerarRifa()" style="background:#c0392b;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.1em;cursor:pointer;transition:opacity 0.2s" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">🗑️ ZERAR TUDO</button>
+    </div>
+
+    <!-- SORTEIO -->
+    <div class="sorteio-card">
+      <h3>🎲 Sortear Nome (apenas pagos)</h3>
+      <div class="sorteio-resultado" id="sorteioResultado">—</div>
+      <div class="sorteio-historico" id="sorteioHistorico"></div>
+      <button class="btn-sortear" onclick="sortear()">🎲 SORTEAR AGORA</button>
+    </div>
+
+    <!-- PENDENTES -->
+    <div class="admin-section-title">⏳ Aguardando Confirmação</div>
+    <div class="admin-list" id="adminPendentes">
+      <div class="empty-state">Nenhum pendente no momento.</div>
+    </div>
+
+    <!-- PAGOS -->
+    <div class="admin-section-title">✅ Confirmados / Pagos</div>
+    <div class="admin-list" id="adminPagos">
+      <div class="empty-state">Nenhum confirmado ainda.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== CONFIGURAÇÕES ==========
+const CHAVE_PIX = 'andersonluiz.negocios@gmail.com';
+const WPP_NUMERO = '5511940004245';
+const ADMIN_SENHA = 'negopeto2025';
+const VALOR_COTA = 10;
+
+// ========== SUPABASE ==========
+let SUPABASE_URL = localStorage.getItem('sb_url') || 'https://igefwbujjatolytodyts.supabase.co';
+let SUPABASE_KEY = localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlnZWZ3YnVqamF0b2x5dG9keXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTA0NzQsImV4cCI6MjA5NTI4NjQ3NH0.BXAjuKAsBiu65aeuDmA5qwfxcu-P_nXbJrJTQjH0KOM';
+let sbAtivo = true;
+
+function salvarSupabase() {
+  SUPABASE_URL = document.getElementById('sbUrl').value.trim();
+  SUPABASE_KEY = document.getElementById('sbKey').value.trim();
+  if (!SUPABASE_URL || !SUPABASE_KEY) { showToast('⚠️ Preencha URL e Chave!'); return; }
+  localStorage.setItem('sb_url', SUPABASE_URL);
+  localStorage.setItem('sb_key', SUPABASE_KEY);
+  sbAtivo = true;
+  document.getElementById('sbStatus').textContent = '✅ Conectado';
+  document.getElementById('sbStatus').style.color = 'var(--verde)';
+  showToast('✅ Supabase configurado!');
+  carregarDados();
+}
+
+async function sbFetch(endpoint, method = 'GET', body = null) {
+  if (!sbAtivo) return null;
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : ''
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+// ========== DADOS ==========
+let cotas = {};
+let sorteioHistorico = [];
+let nomeSelecionado = null;
+
+function nId(n) {
+  return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s/g, '');
+}
+
+const todosNomes = [
+  "Maria","Graziela","Claudia","Regiane","Vilma",
+  "Fernanda","Emília","Daniela","Sandra","Zuleika",
+  "Marisa","Emanoele","Dolores","Celina","Tereza",
+  "Solange","Ângela","Guiomar","Margot","Dalila",
+  "Anadark","Cristina","Débora","Eliane","Genilda",
+  "Rosália","Simone","Helena","Valquiria","Andréa",
+  "Cleide","Elaine","Roberta","Glória","Suzana",
+  "Adriana","Olga","Izabel","Juliana","Kátia",
+  "Irene","Jurema","Letícia","Marta","Paula",
+  "Marcela","Olívia","Joana","Lenice","Fátima",
+  "Rosimeire","Denise","Elizabeth","Claudete","Regina",
+  "Celeste","Aurora","Rosângela","Lourdes","Isaura",
+  "Mônica","Leonor","Janete","Raquel","Virgínia",
+  "Camila","Roseli","Valéria","Adelaide","Salete",
+  "Zulmira","Sheila","Cleuza","Antônia","Joelma",
+  "Iolanda","Miriam","Olinda","Norma","Luciana",
+  "Alessandra","Clarice","Sônia","Dirce","Marlene",
+  "Jaqueline","Noêmia","Margarida","Patrícia","Estela",
+  "Dinorá","Márcia","Rosana","Silvana","Neuza",
+  "Margarete","Eugênia","Renata","Nazaré","Mirtes"
+];
+
+// ========== CARREGAR ==========
+async function carregarDados() {
+  if (sbAtivo) {
+    const data = await sbFetch('rifa_cotas?select=*&order=created_at.desc');
+    if (data && Array.isArray(data)) {
+      cotas = {};
+      data.forEach(row => {
+        cotas[nId(row.nome_rifa)] = {
+          nome_rifa: row.nome_rifa, comprador: row.comprador,
+          wpp: row.wpp, status: row.status,
+          ts: row.created_at, db_id: row.id
+        };
+      });
+    }
+  } else {
+    const saved = localStorage.getItem('rifa_cotas');
+    if (saved) cotas = JSON.parse(saved);
+  }
+  renderTudo();
+}
+
+function salvarLocal() {
+  if (!sbAtivo) localStorage.setItem('rifa_cotas', JSON.stringify(cotas));
+}
+
+// ========== RENDER ==========
+function renderTudo() {
+  renderGrid();
+  renderStats();
+  renderParticipantes();
+  if (adminAberto) renderAdmin();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('nomeGrid');
+  grid.innerHTML = '';
+  todosNomes.forEach(nome => {
+    const id = nId(nome);
+    const cota = cotas[id];
+    const btn = document.createElement('div');
+    btn.className = 'nome-btn';
+    btn.textContent = nome;
+    if (cota) {
+      btn.classList.add(cota.status === 'pago' ? 'ocupado' : 'pendente');
+      btn.title = cota.status === 'pago' ? `✓ ${cota.comprador}` : '⏳ Aguardando pagamento';
+    } else {
+      if (nomeSelecionado === nome) btn.classList.add('selecionado');
+      btn.onclick = () => selecionarNome(nome);
+    }
+    grid.appendChild(btn);
+  });
+}
+
+function renderStats() {
+  const pagos = Object.values(cotas).filter(c => c.status === 'pago').length;
+  const pendentes = Object.values(cotas).filter(c => c.status === 'pendente').length;
+  const vendidas = pagos + pendentes;
+  document.getElementById('statVendidas').textContent = vendidas;
+  document.getElementById('statLivres').textContent = 100 - vendidas;
+
+  const pct = Math.round((pagos / 100) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '% vendido';
+}
+
+function renderParticipantes() {
+  const list = document.getElementById('participantesList');
+  const items = Object.values(cotas);
+  if (!items.length) { list.innerHTML = '<div class="empty-state">Nenhuma cota vendida ainda. Seja o primeiro! 🎯</div>'; return; }
+  items.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+  list.innerHTML = items.map(c => `
+    <div class="part-item">
+      <div class="part-info">
+        <div class="part-nome-rifa">🎯 ${c.nome_rifa}</div>
+        <div class="part-comprador">👤 ${c.comprador}</div>
+      </div>
+      <div class="part-status ${c.status === 'pago' ? 'pago' : 'pend'}">
+        ${c.status === 'pago' ? '✓ PAGO' : '⏳ PENDENTE'}
+      </div>
+    </div>`).join('');
+}
+
+function renderAdmin() {
+  // Pendentes
+  const pendentes = Object.values(cotas).filter(c => c.status === 'pendente');
+  const elPend = document.getElementById('adminPendentes');
+  if (!pendentes.length) {
+    elPend.innerHTML = '<div class="empty-state">Nenhum pendente. ✅</div>';
+  } else {
+    elPend.innerHTML = pendentes.map(c => `
+      <div class="admin-item">
+        <div class="admin-item-info">
+          <div class="admin-item-nome">🎯 ${c.nome_rifa}</div>
+          <div class="admin-item-dados">👤 ${c.comprador} · 📱 ${c.wpp}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-confirmar" onclick="confirmarPagamento('${nId(c.nome_rifa)}')">✓ Confirmar</button>
+          <button class="btn-recusar" onclick="recusarCota('${nId(c.nome_rifa)}')">✕ Recusar</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // Pagos
+  const pagos = Object.values(cotas).filter(c => c.status === 'pago');
+  const elPago = document.getElementById('adminPagos');
+  if (!pagos.length) {
+    elPago.innerHTML = '<div class="empty-state">Nenhum confirmado ainda.</div>';
+  } else {
+    elPago.innerHTML = pagos.map(c => `
+      <div class="admin-item">
+        <div class="admin-item-info">
+          <div class="admin-item-nome">🎯 ${c.nome_rifa}</div>
+          <div class="admin-item-dados">👤 ${c.comprador} · 📱 ${c.wpp}</div>
+        </div>
+        <span style="color:var(--verde);font-weight:700;font-size:0.8rem">✓ PAGO</span>
+      </div>`).join('');
+  }
+}
+
+// ========== AÇÕES PÚBLICAS ==========
+function selecionarNome(nome) {
+  nomeSelecionado = nome;
+  document.getElementById('modalNomeSel').textContent = nome;
+  document.getElementById('inputNome').value = '';
+  document.getElementById('inputWpp').value = '';
+  document.getElementById('overlay').classList.add('open');
+  renderQR();
+  renderGrid();
+}
+
+function renderQR() {
+  const qrDiv = document.getElementById('qrcode');
+  qrDiv.innerHTML = '';
+  try {
+    new QRCode(qrDiv, { text: CHAVE_PIX, width: 140, height: 140, colorDark: '#009c3b', colorLight: '#011a0a', correctLevel: QRCode.CorrectLevel.M });
+  } catch (e) {}
+}
+
+async function confirmarReserva() {
+  const nome = document.getElementById('inputNome').value.trim();
+  const wpp = document.getElementById('inputWpp').value.trim();
+  if (!nome) { showToast('⚠️ Informe seu nome!'); return; }
+  if (!wpp) { showToast('⚠️ Informe seu WhatsApp!'); return; }
+
+  const id = nId(nomeSelecionado);
+  if (cotas[id]) { showToast('⚠️ Este nome já foi reservado!'); fecharModal(); return; }
+
+  const cota = { nome_rifa: nomeSelecionado, comprador: nome, wpp, status: 'pendente', ts: new Date().toISOString() };
+
+  if (sbAtivo) {
+    await sbFetch('rifa_cotas', 'POST', { nome_rifa: nomeSelecionado, comprador: nome, wpp, status: 'pendente' });
+  }
+  cotas[id] = cota;
+  salvarLocal();
+
+  const msg = encodeURIComponent(
+    `🎉 *Rifa Copa do Mundo*\n\nOlá! Reservei a cota *${nomeSelecionado}* por R$ 10,00.\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${wpp}\n\nSegue o comprovante Pix! ✅`
+  );
+  window.open(`https://wa.me/${WPP_NUMERO}?text=${msg}`, '_blank');
+  fecharModal();
+  renderTudo();
+  showToast('✅ Cota reservada! Envie o comprovante.');
+}
+
+function copiarPix() {
+  navigator.clipboard.writeText(CHAVE_PIX).then(() => showToast('📋 Chave Pix copiada!'));
+}
+
+function fecharModal() {
+  document.getElementById('overlay').classList.remove('open');
+  nomeSelecionado = null;
+  renderGrid();
+}
+
+function fecharModalOverlay(e) {
+  if (e.target === document.getElementById('overlay')) fecharModal();
+}
+
+// ========== AÇÕES ADMIN ==========
+let adminAberto = false;
+
+function abrirAdmin() {
+  adminAberto = true;
+  document.getElementById('adminOverlay').classList.add('open');
+  document.getElementById('adminLogin').style.display = 'block';
+  document.getElementById('adminPainel').style.display = 'none';
+  document.getElementById('adminSenhaInput').value = '';
+  // Preencher campos supabase se já salvos
+  if (SUPABASE_URL) document.getElementById('sbUrl').value = SUPABASE_URL;
+  if (SUPABASE_KEY) document.getElementById('sbKey').value = SUPABASE_KEY;
+  if (sbAtivo) {
+    document.getElementById('sbStatus').textContent = '✅ Conectado';
+    document.getElementById('sbStatus').style.color = 'var(--verde)';
+  }
+}
+
+function fecharAdmin() {
+  adminAberto = false;
+  document.getElementById('adminOverlay').classList.remove('open');
+}
+
+function loginAdmin() {
+  const senha = document.getElementById('adminSenhaInput').value;
+  if (senha === ADMIN_SENHA) {
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminPainel').style.display = 'block';
+    renderAdmin();
+    showToast('🔓 Bem-vindo, Admin!');
+  } else {
+    showToast('❌ Senha incorreta');
+    document.getElementById('adminSenhaInput').value = '';
+  }
+}
+
+async function confirmarPagamento(id) {
+  if (!cotas[id]) return;
+  cotas[id].status = 'pago';
+  if (sbAtivo && cotas[id].db_id) {
+    await sbFetch(`rifa_cotas?id=eq.${cotas[id].db_id}`, 'PATCH', { status: 'pago' });
+  }
+  salvarLocal();
+  renderTudo();
+  showToast(`✅ ${cotas[id].nome_rifa} confirmado!`);
+}
+
+async function recusarCota(id) {
+  if (!cotas[id]) return;
+  const nome = cotas[id].nome_rifa;
+  if (sbAtivo && cotas[id].db_id) {
+    await sbFetch(`rifa_cotas?id=eq.${cotas[id].db_id}`, 'DELETE');
+  }
+  delete cotas[id];
+  salvarLocal();
+  renderTudo();
+  showToast(`🗑️ ${nome} removido`);
+}
+
+function sortear() {
+  const pagos = Object.values(cotas).filter(c => c.status === 'pago');
+  if (!pagos.length) { showToast('⚠️ Nenhuma cota paga para sortear!'); return; }
+
+  const el = document.getElementById('sorteioResultado');
+  let i = 0;
+  const timer = setInterval(() => {
+    const random = pagos[Math.floor(Math.random() * pagos.length)];
+    el.textContent = random.nome_rifa;
+    el.classList.add('animando');
+    i++;
+    if (i > 25) {
+      clearInterval(timer);
+      const vencedor = pagos[Math.floor(Math.random() * pagos.length)];
+      el.textContent = vencedor.nome_rifa;
+      el.classList.remove('animando');
+      sorteioHistorico.unshift(`🏆 ${vencedor.nome_rifa} (${vencedor.comprador})`);
+      document.getElementById('sorteioHistorico').innerHTML =
+        sorteioHistorico.slice(0, 3).map(h => `<div>${h}</div>`).join('');
+      showToast(`🏆 Sorteado: ${vencedor.nome_rifa}!`);
+    }
+  }, 80);
+}
+
+// ========== ACESSO ADMIN VIA URL ==========
+// Acesse: sualink.com/rifa-copa.html#admin
+function verificarHashAdmin() {
+  if (window.location.hash === '#admin') abrirAdmin();
+}
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#admin') abrirAdmin();
+  else fecharAdmin();
+});
+
+// ========== ZERAR RIFA ==========
+async function zerarRifa() {
+  if (!confirm('⚠️ Tem certeza? Isso vai apagar TODOS os registros da rifa!')) return;
+  if (!confirm('Segunda confirmação: ZERAR tudo mesmo?')) return;
+
+  if (sbAtivo) {
+    await sbFetch('rifa_cotas?id=gt.0', 'DELETE');
+  }
+  cotas = {};
+  salvarLocal();
+  sorteioHistorico = [];
+  document.getElementById('sorteioResultado').textContent = '—';
+  document.getElementById('sorteioHistorico').innerHTML = '';
+  renderTudo();
+  showToast('🗑️ Rifa zerada com sucesso!');
+}
+
+// ========== TOAST ==========
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ========== INIT ==========
+verificarHashAdmin();
+setInterval(carregarDados, 30000);
+carregarDados();
+</script>
+</body>
+</html>
