@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fila PKL & Master — Reclamações BACEN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C2B3A;
+  --ink-soft:#4B5A6B;
+  --paper:#EEF1EF;
+  --card:#FFFFFF;
+  --line:#DADFDA;
+  --pending:#B9791F;
+  --pending-bg:#FBEFDC;
+  --action:#1F6F78;
+  --action-bg:#E0EEEE;
+  --done:#3D7A4C;
+  --done-bg:#E3F0E3;
+  --overdue:#B3402F;
+  --overdue-bg:#FAE5E0;
+  --font-ui:'IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:var(--font-ui);
+  background:var(--paper);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:14px;}
+h1,h2,h3{font-weight:600;margin:0;}
+
+.setup-screen{max-width:640px;margin:60px auto;padding:0 20px;}
+.setup-screen .card{background:#fff;border:0.5px solid var(--line);border-radius:12px;padding:24px 26px;}
+.setup-screen h1{font-size:19px;margin-bottom:10px;}
+.setup-screen p{font-size:13.5px;color:var(--ink-soft);line-height:1.6;}
+.setup-screen code{background:#F2F3F1;padding:2px 6px;border-radius:5px;font-family:var(--font-mono);font-size:12.5px;}
+
+/* ---------- header ---------- */
+.header{
+  background:var(--ink);
+  color:var(--paper);
+  padding:20px 24px;
+}
+.header-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-bottom:18px;
+}
+.header h1{font-size:21px;letter-spacing:.2px;}
+.header .sub{font-size:13px;color:#AEB9C4;margin-top:4px;}
+.refresh-btn{
+  display:flex;align-items:center;gap:6px;
+  background:transparent;color:#CFD8DF;
+  border:0.5px solid #47576A;border-radius:8px;
+  padding:7px 12px;cursor:pointer;
+}
+.refresh-btn:hover{background:#25384B;}
+.tiles{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;
+}
+.tile{
+  background:#233649;
+  border-radius:10px;
+  padding:12px 14px;
+}
+.tile .label{font-size:12px;color:#9FACB8;}
+.tile .value{font-family:var(--font-mono);font-size:22px;font-weight:600;margin-top:4px;color:#fff;}
+.tile.overdue .value{color:#F0A98E;}
+
+/* ---------- toolbar ---------- */
+.toolbar{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  padding:14px 24px;background:var(--card);border-bottom:0.5px solid var(--line);
+}
+.toolbar input[type="text"],.toolbar select{
+  padding:8px 10px;border:0.5px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);min-width:140px;
+}
+.toolbar input[type="text"]:focus,.toolbar select:focus{outline:2px solid var(--action);outline-offset:1px;}
+.toolbar .spacer{flex:1;}
+.btn-primary{
+  background:var(--ink);color:#fff;border:none;border-radius:8px;
+  padding:9px 16px;font-weight:500;cursor:pointer;
+}
+.btn-primary:hover{background:#0F1B27;}
+.btn-primary:disabled{opacity:.6;cursor:default;}
+.btn-secondary{
+  background:#fff;color:var(--ink);border:0.5px solid var(--line);border-radius:8px;
+  padding:9px 14px;cursor:pointer;
+}
+.btn-secondary:hover{background:#F4F5F3;}
+
+/* ---------- board ---------- */
+.board-wrap{padding:18px 24px 40px;overflow-x:auto;}
+.board{display:flex;gap:14px;align-items:flex-start;min-width:min-content;}
+.column{
+  background:#E6E9E5;
+  border-radius:12px;
+  min-width:275px;max-width:275px;
+  display:flex;flex-direction:column;
+  max-height:calc(100vh - 260px);
+}
+.column-head{padding:12px 14px 10px;border-bottom:0.5px solid #D2D6D0;}
+.column-head .step{font-size:11px;color:var(--ink-soft);font-family:var(--font-mono);}
+.column-head h2{font-size:14px;margin-top:2px;}
+.column-head .desc{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+.column-count{
+  display:inline-block;background:#fff;border-radius:20px;padding:1px 8px;
+  font-size:12px;font-family:var(--font-mono);margin-left:6px;color:var(--ink-soft);
+}
+.column-body{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+.column-empty{
+  font-size:12.5px;color:var(--ink-soft);text-align:center;padding:22px 8px;
+  border:1px dashed #C7CCC5;border-radius:8px;
+}
+
+/* ---------- card ---------- */
+.card{
+  background:var(--card);border-radius:10px;border:0.5px solid var(--line);
+  padding:11px 12px;box-shadow:0 1px 0 rgba(0,0,0,0.02);
+}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+.card-nome{font-weight:600;font-size:13.5px;line-height:1.3;}
+.card-banco{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.3px;
+  border:0.5px solid var(--ink-soft);color:var(--ink-soft);border-radius:5px;
+  padding:1px 5px;white-space:nowrap;
+}
+.card-valor{font-family:var(--font-mono);font-weight:600;font-size:14px;margin-top:5px;}
+.card-meta{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+.card-protocolo{
+  font-family:var(--font-mono);font-size:11.5px;background:#F2F3F1;
+  border-radius:5px;padding:3px 6px;margin-top:6px;display:inline-block;
+  word-break:break-all;
+}
+.sla-row{margin-top:8px;}
+.sla-track{display:flex;gap:2px;}
+.sla-tick{flex:1;height:5px;border-radius:2px;background:#E1E4DF;}
+.sla-tick.on{background:var(--pending);}
+.sla-tick.over{background:var(--overdue);}
+.sla-label{font-size:10.5px;color:var(--ink-soft);margin-top:3px;display:flex;justify-content:space-between;}
+.badge-atrasado{
+  display:inline-flex;align-items:center;gap:3px;background:var(--overdue-bg);color:var(--overdue);
+  font-size:10.5px;font-weight:500;border-radius:5px;padding:2px 6px;margin-top:6px;
+}
+.card-actions{display:flex;gap:6px;margin-top:9px;align-items:center;}
+.btn-avancar{
+  flex:1;background:var(--action-bg);color:var(--action);border:none;border-radius:7px;
+  padding:7px 8px;font-size:12px;font-weight:500;cursor:pointer;
+}
+.btn-avancar:hover{filter:brightness(0.96);}
+.icon-btn{
+  background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:5px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{background:#EDEEEB;color:var(--ink);}
+.card.concluido{background:var(--done-bg);border-color:#C7DEC7;}
+.done-tag{color:var(--done);font-size:11.5px;font-weight:500;display:flex;align-items:center;gap:4px;margin-top:6px;}
+
+/* ---------- modal ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(20,28,36,0.55);
+  display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;
+}
+.modal-overlay.hidden{display:none;}
+.modal{
+  background:#fff;border-radius:12px;max-width:420px;width:100%;
+  max-height:88vh;overflow-y:auto;padding:20px 22px 22px;position:relative;
+}
+.modal h3{font-size:16px;}
+.modal .modal-sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;margin-bottom:14px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:4px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:8px 10px;border:0.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--action);outline-offset:1px;}
+.field.mono input{font-family:var(--font-mono);}
+.field textarea{resize:vertical;min-height:56px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;align-items:center;}
+.modal-close{
+  position:absolute;top:14px;right:16px;background:none;border:none;color:var(--ink-soft);
+  cursor:pointer;font-size:16px;
+}
+.import-help{font-size:12px;color:var(--ink-soft);margin:0 0 10px;line-height:1.6;}
+.import-preview{font-size:12.5px;margin-top:10px;line-height:1.6;}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;
+  z-index:60;opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1;}
+.toast.error{background:var(--overdue);}
+
+.loading-state{padding:60px 24px;text-align:center;color:var(--ink-soft);font-size:14px;}
+
+@media (max-width:640px){
+  .header{padding:16px;}
+  .toolbar{padding:12px 16px;}
+  .board-wrap{padding:14px 16px 32px;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important;}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading-state">Carregando fila…</div>
+</div>
+
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" id="modalContent" role="dialog" aria-modal="true"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ================= CONFIGURAÇÃO — edite estas duas linhas ================= */
+const SUPABASE_URL = 'https://tzzfmwitmqzxjqfhjgnq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6emZtd2l0bXF6eGpxZmhqZ25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMDg0OTMsImV4cCI6MjA5Nzc4NDQ5M30.Bv2y1duXa-jfruHJ-1h-HE0vnOE8SjEKKgpIIGAc_Aw';
+const TABELA = 'fila_bacen';
+/* ============================================================================ */
+
+const META_DIAS_UTEIS = 10;
+const OPERADORES = [
+  'Giovanna Bispo dos Santos','Flavio Felix da Cruz','Luan Bitencur da Silva',
+  'Vinicius Martins de Camargo','Thifany Isadora Lima','Leonardo da Silva Covaltchuk',
+  'Gabriel do Nascimento Oliveira','Gabriel Fernandes Miguel','Marcos Vinicius Rosa Rabelo',
+  'Marcelo Marinho Augusto','Joao Vitor de Jesus','Marcos Pires Fernandez',
+  'Natalia Jesus de Oliveira','Maria Eduarda Andrade da Silva','Carlos Jesus de Carvalho'
+];
+const ETAPAS = [
+  { id:'fila', step:'1', label:'Fila', desc:'Aguardando abrir reclamação' },
+  { id:'aguardando_boleto', step:'2', label:'Aguardando boleto', desc:'Reclamação aberta · meta 10 dias úteis' },
+  { id:'aguardando_2a', step:'3', label:'Boleto recebido', desc:'Aguardando abrir 2ª reclamação' },
+  { id:'aguardando_liberacao', step:'4', label:'Aguardando liberação', desc:'2ª reclamação aberta · meta 10 dias úteis' },
+  { id:'concluido', step:'5', label:'Concluído', desc:'Margem liberada' }
+];
+
+let state = { casos: [], filtroBanco:'todos', filtroOperador:'todos', busca:'', ultimoOperador:'' };
+let db = null;
+
+/* ================= helpers ================= */
+function esc(str){
+  if(str===undefined||str===null) return '';
+  const d=document.createElement('div');
+  d.textContent=String(str);
+  return d.innerHTML;
+}
+function fmtBRL(v){ return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function fmtData(iso){
+  if(!iso) return '—';
+  const [y,m,d]=String(iso).slice(0,10).split('-');
+  return `${d}/${m}/${y}`;
+}
+function hojeISO(){
+  const d=new Date();
+  const tz=d.getTimezoneOffset()*60000;
+  return new Date(d-tz).toISOString().slice(0,10);
+}
+function soDigitos(s){ return String(s||'').replace(/\D/g,''); }
+function parseValorBR(str){
+  str = String(str||'').trim().replace(/[^\d.,-]/g,'');
+  if(!str) return 0;
+  const lastComma = str.lastIndexOf(','), lastDot = str.lastIndexOf('.');
+  if(lastComma>lastDot) str = str.replace(/\./g,'').replace(',', '.');
+  else if(lastDot>lastComma) str = str.replace(/,/g,'');
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
+}
+function diasUteisEntre(iso1, iso2){
+  if(!iso1) return 0;
+  const d1=new Date(String(iso1).slice(0,10)+'T00:00:00');
+  const d2=iso2?new Date(String(iso2).slice(0,10)+'T00:00:00'):new Date();
+  if(d2<=d1) return 0;
+  let count=0; let cur=new Date(d1);
+  while(cur<d2){ cur.setDate(cur.getDate()+1); const day=cur.getDay(); if(day!==0&&day!==6) count++; }
+  return count;
+}
+function operadorOptionsHtml(selected){
+  const isOutro = selected && OPERADORES.indexOf(selected)===-1;
+  let html = '<option value="">Selecionar…</option>' + OPERADORES.map(n=>
+    `<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join('');
+  html += `<option value="OUTRO" ${isOutro?'selected':''}>Outro…</option>`;
+  return html;
+}
+
+/* ================= toast ================= */
+let toastTimer;
+function toast(msg, isError){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError?' error':'');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.className='toast'; }, isError?7000:2400);
+}
+window.addEventListener('error', function(e){ toast('Erro: ' + (e.message||'algo deu errado'), true); });
+window.addEventListener('unhandledrejection', function(e){
+  const msg = (e.reason && e.reason.message) ? e.reason.message : String(e.reason||'algo deu errado');
+  toast('Erro: ' + msg, true);
+});
+
+/* ================= banco de dados (Supabase) ================= */
+async function carregarCasos(){
+  const { data, error } = await db.from(TABELA).select('*').order('criado_em', {ascending:true});
+  if(error) throw error;
+  return data || [];
+}
+async function inserirCaso(caso){
+  const { error } = await db.from(TABELA).insert([caso]);
+  if(error) throw error;
+}
+async function atualizarCaso(id, campos){
+  const { error } = await db.from(TABELA).update(campos).eq('id', id);
+  if(error) throw error;
+}
+async function excluirCasoDB(id){
+  const { error } = await db.from(TABELA).delete().eq('id', id);
+  if(error) throw error;
+}
+async function refreshFromDB(){
+  state.casos = await carregarCasos();
+  render();
+}
+async function executarMutacao(fn, msgSucesso){
+  try{
+    await fn();
+    await refreshFromDB();
+    toast(msgSucesso || 'Salvo');
+    return true;
+  }catch(e){
+    toast('Erro ao salvar: ' + (e && e.message ? e.message : e), true);
+    return false;
+  }
+}
+
+/* ================= etapa / SLA ================= */
+function getGauge(c){
+  let dataRef = null;
+  if(c.etapa==='aguardando_boleto') dataRef = c.data_protocolo1;
+  if(c.etapa==='aguardando_liberacao') dataRef = c.data_protocolo2;
+  if(!dataRef) return null;
+  const dias = diasUteisEntre(dataRef);
+  const over = dias>META_DIAS_UTEIS;
+  return { dias, over, filled: Math.min(dias, META_DIAS_UTEIS) };
+}
+function estaAtrasado(c){
+  const g = getGauge(c);
+  return !!(g && g.over);
+}
+
+/* ================= render ================= */
+function casosFiltrados(){
+  return state.casos.filter(c=>{
+    if(state.filtroBanco!=='todos' && c.banco!==state.filtroBanco) return false;
+    if(state.filtroOperador!=='todos' && c.operador!==state.filtroOperador) return false;
+    if(state.busca){
+      const q = state.busca.toLowerCase();
+      const emCliente = (c.cliente||'').toLowerCase().includes(q);
+      const emCpf = (c.cpf||'').toLowerCase().includes(q);
+      if(!emCliente && !emCpf) return false;
+    }
+    return true;
+  });
+}
+
+function render(){
+  const casos = casosFiltrados();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <h1>Fila PKL &amp; Master</h1>
+          <div class="sub">Reclamações BACEN até a liberação da margem</div>
+        </div>
+        <button class="refresh-btn" id="btnRefresh"><span>↻</span> Atualizar</button>
+      </div>
+      ${renderTiles(casos)}
+    </div>
+    <div class="toolbar">
+      <input type="text" id="fBusca" placeholder="Buscar cliente ou CPF…" value="${esc(state.busca)}">
+      <select id="fBanco">
+        <option value="todos">Todos os bancos</option>
+        <option value="PKL">PKL</option>
+        <option value="MASTER">Master</option>
+      </select>
+      <select id="fOperador">${renderOperadorOptions()}</select>
+      <div class="spacer"></div>
+      <button class="btn-secondary" id="btnImportar">Importar em lote</button>
+      <button class="btn-secondary" id="btnExportar">Exportar CSV</button>
+      <button class="btn-primary" id="btnNovo">+ Novo caso</button>
+    </div>
+    <div class="board-wrap">
+      <div class="board">
+        ${ETAPAS.map(et=>renderColumn(et, casos)).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('btnRefresh').onclick = refreshFromDB;
+  document.getElementById('btnNovo').onclick = ()=>openModalNovoCaso();
+  document.getElementById('btnImportar').onclick = ()=>openModalImportar();
+  document.getElementById('btnExportar').onclick = ()=>exportarCSV(casos);
+  document.getElementById('fBusca').oninput = (e)=>{ state.busca=e.target.value; render(); };
+  document.getElementById('fBanco').onchange = (e)=>{ state.filtroBanco=e.target.value; render(); };
+  document.getElementById('fOperador').onchange = (e)=>{ state.filtroOperador=e.target.value; render(); };
+  wireCardActions();
+}
+
+function renderOperadorOptions(){
+  const operadores = Array.from(new Set(state.casos.map(c=>c.operador).filter(Boolean))).sort();
+  return `<option value="todos">Todos os operadores</option>` +
+    operadores.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+}
+
+function renderTiles(casos){
+  const abertos = casos.filter(c=>c.etapa!=='concluido');
+  const valorAberto = abertos.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  const atrasados = casos.filter(estaAtrasado);
+  const concluidos = casos.filter(c=>c.etapa==='concluido');
+  const valorConcluido = concluidos.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  return `
+    <div class="tiles">
+      <div class="tile"><div class="label">Total de casos</div><div class="value">${casos.length}</div></div>
+      <div class="tile"><div class="label">Em andamento</div><div class="value">${abertos.length}</div></div>
+      <div class="tile"><div class="label">Valor em aberto</div><div class="value">${fmtBRL(valorAberto)}</div></div>
+      <div class="tile ${atrasados.length?'overdue':''}"><div class="label">Atrasados (&gt;10d úteis)</div><div class="value">${atrasados.length}</div></div>
+      <div class="tile"><div class="label">Concluídos</div><div class="value">${concluidos.length}</div></div>
+    </div>
+  `;
+}
+
+function renderColumn(et, casos){
+  let lista = casos.filter(c=>c.etapa===et.id);
+  return `
+    <div class="column">
+      <div class="column-head">
+        <span class="step">ETAPA ${et.step}</span>
+        <h2>${et.label}<span class="column-count">${lista.length}</span></h2>
+        <div class="desc">${et.desc}</div>
+      </div>
+      <div class="column-body">
+        ${lista.length ? lista.map(c=>renderCard(c)).join('') : `<div class="column-empty">${et.id==='fila' ? 'Fila vazia — adicione um caso' : 'Nenhum caso nesta etapa'}</div>`}
+      </div>
+    </div>
+  `;
+}
+
+function slaBlockHtml(c){
+  const g = getGauge(c);
+  if(!g) return '';
+  const ticks = Array.from({length:META_DIAS_UTEIS}).map((_,i)=>{
+    const on = i<g.filled;
+    return `<div class="sla-tick ${on?(g.over?'over':'on'):''}"></div>`;
+  }).join('');
+  return `
+    <div class="sla-row">
+      <div class="sla-track">${ticks}</div>
+      <div class="sla-label"><span>${g.dias}d úteis</span><span>meta ${META_DIAS_UTEIS}d</span></div>
+    </div>
+    ${g.over ? `<div class="badge-atrasado">⚠ atrasado ${g.dias-META_DIAS_UTEIS}d</div>` : ''}
+  `;
+}
+
+function renderCard(c){
+  const valor = fmtBRL(c.valor);
+  const banco = c.banco==='MASTER' ? 'MASTER' : 'PKL';
+  let body = '';
+
+  if(c.etapa==='fila'){
+    const dias = diasUteisEntre(String(c.criado_em||'').slice(0,10) || hojeISO());
+    body = `
+      <div class="card-meta">Aguardando abertura · ${dias}d úteis</div>
+      <div class="card-actions">
+        <button class="btn-avancar" data-action="abrir1" data-id="${c.id}">Abrir reclamação</button>
+        ${iconActions(c.id)}
+      </div>`;
+  } else if(c.etapa==='aguardando_boleto'){
+    body = `
+      <div class="card-protocolo">Protocolo ${esc(c.protocolo1)}</div>
+      <div class="card-meta">Aberto em ${fmtData(c.data_protocolo1)}</div>
+      ${slaBlockHtml(c)}
+      <div class="card-actions">
+        <button class="btn-avancar" data-action="boleto" data-id="${c.id}">Registrar boleto</button>
+        ${iconActions(c.id)}
+      </div>`;
+  } else if(c.etapa==='aguardando_2a'){
+    body = `
+      <div class="card-protocolo">Protocolo ${esc(c.protocolo1)}</div>
+      <div class="card-meta">Boleto recebido em ${fmtData(c.data_boleto)}</div>
+      <div class="card-actions">
+        <button class="btn-avancar" data-action="abrir2" data-id="${c.id}">Abrir 2ª reclamação</button>
+        ${iconActions(c.id)}
+      </div>`;
+  } else if(c.etapa==='aguardando_liberacao'){
+    body = `
+      <div class="card-protocolo">2ª reclamação ${esc(c.protocolo2)}</div>
+      <div class="card-meta">Aberta em ${fmtData(c.data_protocolo2)}</div>
+      ${slaBlockHtml(c)}
+      <div class="card-actions">
+        <button class="btn-avancar" data-action="liberar" data-id="${c.id}">Registrar liberação</button>
+        ${iconActions(c.id)}
+      </div>`;
+  } else {
+    const totalDias = diasUteisEntre(String(c.criado_em||'').slice(0,10), c.data_liberacao);
+    body = `
+      <div class="card-protocolo">${esc(c.protocolo1)} → ${esc(c.protocolo2)}</div>
+      <div class="done-tag">✓ Margem liberada em ${fmtData(c.data_liberacao)} · ciclo de ${totalDias}d úteis</div>
+      <div class="card-actions">${iconActions(c.id)}</div>`;
+  }
+
+  return `
+    <div class="card ${c.etapa==='concluido'?'concluido':''}">
+      <div class="card-top">
+        <div class="card-nome">${esc(c.cliente)}</div>
+        <div class="card-banco">${banco}</div>
+      </div>
+      <div class="card-valor">${valor}</div>
+      <div class="card-meta">${esc(c.cpf||'—')} · ${esc(c.telefone||'—')}</div>
+      <div class="card-meta">${esc(c.operador||'—')}</div>
+      ${body}
+    </div>
+  `;
+}
+
+function iconActions(id){
+  return `
+    <button class="icon-btn" data-action="editar" data-id="${id}" aria-label="Editar" title="Editar">✎</button>
+    <button class="icon-btn" data-action="excluir" data-id="${id}" aria-label="Excluir" title="Excluir">🗑</button>
+  `;
+}
+
+function wireCardActions(){
+  document.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute('data-id');
+      const action = btn.getAttribute('data-action');
+      const caso = state.casos.find(c=>c.id===id);
+      if(!caso) return;
+      if(action==='abrir1') openModalAvancar(caso,'protocolo1');
+      if(action==='boleto') openModalAvancar(caso,'boleto');
+      if(action==='abrir2') openModalAvancar(caso,'protocolo2');
+      if(action==='liberar') openModalAvancar(caso,'liberacao');
+      if(action==='editar') openModalEditar(caso);
+      if(action==='excluir') confirmExcluir(caso);
+    };
+  });
+}
+
+/* ================= modais ================= */
+function openModal(html){
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('modalContent').innerHTML = '';
+}
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='modalOverlay') closeModal();
+});
+
+function setBotaoCarregando(btn, carregando, textoCarregando){
+  btn.disabled = carregando;
+  if(carregando){ btn.dataset.textoOriginal = btn.textContent; btn.textContent = textoCarregando || 'Salvando…'; }
+  else { btn.textContent = btn.dataset.textoOriginal || btn.textContent; }
+}
+
+function openModalNovoCaso(){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>Novo caso</h3>
+    <div class="modal-sub">Entra na fila, etapa 1 — aguardando abertura da reclamação</div>
+    <form id="formNovo" novalidate>
+      <div class="field"><label>Cliente *</label><input type="text" name="cliente"></div>
+      <div class="field"><label>CPF *</label><input type="text" name="cpf" placeholder="11 dígitos"></div>
+      <div class="field"><label>Telefone</label><input type="text" name="telefone" placeholder="opcional"></div>
+      <div class="field"><label>Banco</label>
+        <select name="banco"><option value="PKL">PKL</option><option value="MASTER">Master</option></select>
+      </div>
+      <div class="field"><label>Valor (R$)</label><input type="text" inputmode="decimal" name="valor" placeholder="opcional — ex: 15.000,00"></div>
+      <div class="field"><label>Operador responsável</label>
+        <select id="selOperadorNovo">${operadorOptionsHtml(state.ultimoOperador)}</select>
+      </div>
+      <div class="field" id="wrapOutroNovo" style="display:none;">
+        <label>Nome do operador</label><input type="text" id="outroNovo">
+      </div>
+      <div class="field"><label>Observações (opcional)</label><textarea name="obs"></textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary">Adicionar</button>
+      </div>
+    </form>
+  `);
+  const selOp = document.getElementById('selOperadorNovo');
+  const wrapOutro = document.getElementById('wrapOutroNovo');
+  wrapOutro.style.display = selOp.value === 'OUTRO' ? '' : 'none';
+  selOp.onchange = ()=>{ wrapOutro.style.display = selOp.value==='OUTRO' ? '' : 'none'; };
+
+  document.getElementById('formNovo').onsubmit = async (e)=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const cliente = f.get('cliente').trim();
+    if(!cliente){ toast('Informe o nome do cliente.', true); return; }
+    const cpf = f.get('cpf').trim();
+    if(soDigitos(cpf).length !== 11){ toast('CPF é obrigatório (11 dígitos).', true); return; }
+    const telefone = f.get('telefone').trim();
+    const valor = parseValorBR(f.get('valor'));
+    const opSel = document.getElementById('selOperadorNovo').value;
+    const operador = opSel==='OUTRO' ? document.getElementById('outroNovo').value.trim() : opSel;
+
+    const btn = e.target.querySelector('button[type=submit]');
+    setBotaoCarregando(btn, true);
+    const sucesso = await executarMutacao(()=>inserirCaso({
+      cliente, cpf, telefone, banco: f.get('banco'), valor, operador,
+      obs: f.get('obs').trim(), etapa:'fila'
+    }), 'Caso adicionado.');
+    setBotaoCarregando(btn, false);
+    if(sucesso){ state.ultimoOperador = operador; closeModal(); }
+  };
+}
+
+function openModalAvancar(caso, tipo){
+  const configs = {
+    protocolo1: {
+      titulo:'Abrir reclamação',
+      sub:`Registrar protocolo da reclamação no BACEN para ${esc(caso.cliente)}`,
+      campos:`
+        <div class="field mono"><label>Número do protocolo</label><input type="text" name="protocolo1"></div>
+        <div class="field"><label>Data de abertura</label><input type="date" name="data_protocolo1" value="${hojeISO()}"></div>`,
+      etapa:'aguardando_boleto', obrigatorios:['protocolo1','data_protocolo1']
+    },
+    boleto: {
+      titulo:'Registrar boleto',
+      sub:`Data em que o boleto chegou para ${esc(caso.cliente)}`,
+      campos:`<div class="field"><label>Data de recebimento</label><input type="date" name="data_boleto" value="${hojeISO()}"></div>`,
+      etapa:'aguardando_2a', obrigatorios:['data_boleto']
+    },
+    protocolo2: {
+      titulo:'Abrir 2ª reclamação',
+      sub:`Reclamação para liberar a margem de ${esc(caso.cliente)}`,
+      campos:`
+        <div class="field mono"><label>Número do protocolo</label><input type="text" name="protocolo2"></div>
+        <div class="field"><label>Data de abertura</label><input type="date" name="data_protocolo2" value="${hojeISO()}"></div>`,
+      etapa:'aguardando_liberacao', obrigatorios:['protocolo2','data_protocolo2']
+    },
+    liberacao: {
+      titulo:'Registrar liberação',
+      sub:`Data em que a margem de ${esc(caso.cliente)} foi liberada`,
+      campos:`<div class="field"><label>Data de liberação</label><input type="date" name="data_liberacao" value="${hojeISO()}"></div>`,
+      etapa:'concluido', obrigatorios:['data_liberacao']
+    }
+  };
+  const cfg = configs[tipo];
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${cfg.titulo}</h3>
+    <div class="modal-sub">${cfg.sub}</div>
+    <form id="formAvancar" novalidate>
+      ${cfg.campos}
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('formAvancar').onsubmit = async (e)=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const campos = {};
+    for(const [k,v] of f.entries()) campos[k]=v.trim();
+    const faltando = cfg.obrigatorios.some(k=>!campos[k]);
+    if(faltando){ toast('Preencha todos os campos antes de salvar.', true); return; }
+    const btn = e.target.querySelector('button[type=submit]');
+    setBotaoCarregando(btn, true);
+    const sucesso = await executarMutacao(()=>atualizarCaso(caso.id, {...campos, etapa:cfg.etapa, atualizado_em:new Date().toISOString()}));
+    setBotaoCarregando(btn, false);
+    if(sucesso) closeModal();
+  };
+}
+
+function openModalEditar(caso){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>Editar caso</h3>
+    <div class="modal-sub">Correções manuais — não muda a etapa</div>
+    <form id="formEditar" novalidate>
+      <div class="field"><label>Cliente</label><input type="text" name="cliente" value="${esc(caso.cliente)}"></div>
+      <div class="field"><label>CPF</label><input type="text" name="cpf" value="${esc(caso.cpf)}"></div>
+      <div class="field"><label>Telefone</label><input type="text" name="telefone" value="${esc(caso.telefone)}"></div>
+      <div class="field"><label>Etapa</label>
+        <select name="etapa">
+          ${ETAPAS.map(et=>`<option value="${et.id}" ${caso.etapa===et.id?'selected':''}>Etapa ${et.step} — ${et.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Banco</label>
+        <select name="banco">
+          <option value="PKL" ${caso.banco==='PKL'?'selected':''}>PKL</option>
+          <option value="MASTER" ${caso.banco==='MASTER'?'selected':''}>Master</option>
+        </select>
+      </div>
+      <div class="field"><label>Valor (R$)</label><input type="text" inputmode="decimal" name="valor" value="${String(caso.valor).replace('.',',')}"></div>
+      <div class="field"><label>Operador responsável</label>
+        <select id="selOperadorEdit">${operadorOptionsHtml(caso.operador)}</select>
+      </div>
+      <div class="field" id="wrapOutroEdit" style="display:none;">
+        <label>Nome do operador</label><input type="text" id="outroEdit" value="${OPERADORES.indexOf(caso.operador)===-1 ? esc(caso.operador) : ''}">
+      </div>
+      <div class="field mono"><label>Protocolo 1</label><input type="text" name="protocolo1" value="${esc(caso.protocolo1)}"></div>
+      <div class="field"><label>Data protocolo 1</label><input type="date" name="data_protocolo1" value="${(caso.data_protocolo1||'').slice(0,10)}"></div>
+      <div class="field"><label>Data boleto</label><input type="date" name="data_boleto" value="${(caso.data_boleto||'').slice(0,10)}"></div>
+      <div class="field mono"><label>Protocolo 2</label><input type="text" name="protocolo2" value="${esc(caso.protocolo2)}"></div>
+      <div class="field"><label>Data protocolo 2</label><input type="date" name="data_protocolo2" value="${(caso.data_protocolo2||'').slice(0,10)}"></div>
+      <div class="field"><label>Data liberação</label><input type="date" name="data_liberacao" value="${(caso.data_liberacao||'').slice(0,10)}"></div>
+      <div class="field"><label>Observações</label><textarea name="obs">${esc(caso.obs)}</textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" style="margin-right:auto;color:var(--overdue);" id="btnExcluirNoEditar">Excluir</button>
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar alterações</button>
+      </div>
+    </form>
+  `);
+  const selOpE = document.getElementById('selOperadorEdit');
+  const wrapOutroE = document.getElementById('wrapOutroEdit');
+  wrapOutroE.style.display = selOpE.value === 'OUTRO' ? '' : 'none';
+  selOpE.onchange = ()=>{ wrapOutroE.style.display = selOpE.value==='OUTRO' ? '' : 'none'; };
+  document.getElementById('btnExcluirNoEditar').onclick = ()=>confirmExcluir(caso);
+
+  document.getElementById('formEditar').onsubmit = async (e)=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const campos = {};
+    for(const [k,v] of f.entries()) campos[k]=v.trim();
+    if(selOpE.value === 'OUTRO') campos.operador = document.getElementById('outroEdit').value.trim();
+    else campos.operador = selOpE.value;
+    campos.valor = parseValorBR(campos.valor);
+    if(!campos.cliente){ toast('Informe o nome do cliente.', true); return; }
+    if(soDigitos(campos.cpf).length !== 11){ toast('CPF é obrigatório (11 dígitos).', true); return; }
+    ['data_protocolo1','data_boleto','data_protocolo2','data_liberacao'].forEach(k=>{ if(!campos[k]) campos[k]=null; });
+    campos.atualizado_em = new Date().toISOString();
+    const btn = e.target.querySelector('button[type=submit]');
+    setBotaoCarregando(btn, true);
+    const sucesso = await executarMutacao(()=>atualizarCaso(caso.id, campos));
+    setBotaoCarregando(btn, false);
+    if(sucesso) closeModal();
+  };
+}
+
+function confirmExcluir(caso){
+  openModal(`
+    <h3>Excluir caso</h3>
+    <div class="modal-sub">Excluir o caso de ${esc(caso.cliente)}? Essa ação não pode ser desfeita.</div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn-primary" id="btnConfirmarExcluir" style="background:var(--overdue);">Excluir</button>
+    </div>
+  `);
+  document.getElementById('btnConfirmarExcluir').onclick = async ()=>{
+    const btn = document.getElementById('btnConfirmarExcluir');
+    setBotaoCarregando(btn, true, 'Excluindo…');
+    const sucesso = await executarMutacao(()=>excluirCasoDB(caso.id), 'Caso excluído.');
+    if(sucesso) closeModal(); else setBotaoCarregando(btn, false);
+  };
+}
+
+/* ================= importação em lote ================= */
+function parseImportRows(texto){
+  const linhas = texto.split('\n').map(l=>l.replace(/\r/g,'')).filter(l=>l.trim());
+  const validos = []; let invalidos = 0;
+  linhas.forEach(line=>{
+    const cols = line.split('\t');
+    const cliente = (cols[0]||'').trim();
+    const cpfDigitos = soDigitos(cols[1]);
+    const cpfOk = cpfDigitos.length === 11;
+    // só cliente e CPF bloqueiam a linha
+    if(!cliente || !cpfOk){ invalidos++; return; }
+    // telefone: só entra se tiver 10 ou 11 dígitos; senão fica vazio (não descarta a linha)
+    const telDigitos = soDigitos(cols[2]);
+    const telValido = telDigitos.length === 10 || telDigitos.length === 11;
+    validos.push({
+      cliente, cpf: (cols[1]||'').trim(), telefone: telValido ? (cols[2]||'').trim() : '',
+      banco: ((cols[3]||'PKL').trim().toUpperCase()==='MASTER') ? 'MASTER' : 'PKL',
+      valor: parseValorBR(cols[4]||'0'), operador: (cols[5]||'').trim(),
+      obs:'', etapa:'fila'
+    });
+  });
+  return { validos, invalidos };
+}
+function openModalImportar(){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>Importar em lote</h3>
+    <div class="import-help">Cole linhas do Excel — uma por caso, sempre nesta ordem, separadas por tabulação:<br>
+      <strong>Cliente · CPF · Telefone · Banco · Valor · Operador</strong><br>
+      Só Cliente e CPF são obrigatórios (CPF com 11 dígitos). Telefone, Banco, Valor e Operador podem ficar em branco. Linhas sem Cliente ou CPF válido são ignoradas, não importadas.</div>
+    <form id="formImportar" novalidate>
+      <div class="field"><textarea id="textoImportar" style="min-height:150px;font-family:var(--font-mono);font-size:12.5px;" placeholder="Cole aqui…"></textarea></div>
+      <div class="import-preview" id="previewImportar"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary">Importar</button>
+      </div>
+    </form>
+  `);
+  const ta = document.getElementById('textoImportar');
+  const preview = document.getElementById('previewImportar');
+  ta.oninput = ()=>{
+    if(!ta.value.trim()){ preview.innerHTML=''; return; }
+    const r = parseImportRows(ta.value);
+    let html = '';
+    if(r.validos.length) html += `<span style="color:var(--action);">${r.validos.length} caso(s) prontos pra importar.</span>`;
+    if(r.invalidos) html += (html?'<br>':'') + `<span style="color:var(--overdue);">${r.invalidos} linha(s) ignorada(s) — sem Cliente ou CPF (11 dígitos) válidos.</span>`;
+    if(!r.validos.length && r.invalidos) html += `<br><span style="color:var(--overdue);">Nenhuma linha bateu com o formato esperado. Confira se colou o texto certo.</span>`;
+    preview.innerHTML = html;
+  };
+  document.getElementById('formImportar').onsubmit = async (e)=>{
+    e.preventDefault();
+    const r = parseImportRows(ta.value);
+    if(!r.validos.length){ toast('Nada válido para importar — confira o formato.', true); return; }
+    const btn = e.target.querySelector('button[type=submit]');
+    setBotaoCarregando(btn, true, 'Importando…');
+    const sucesso = await executarMutacao(async ()=>{
+      const { error } = await db.from(TABELA).insert(r.validos);
+      if(error) throw error;
+    });
+    setBotaoCarregando(btn, false);
+    if(sucesso){
+      closeModal();
+      toast(r.validos.length+' caso(s) importados.' + (r.invalidos ? ' '+r.invalidos+' linha(s) ignoradas.' : ''));
+    }
+  };
+}
+
+/* ================= exportação CSV ================= */
+function exportarCSV(casos){
+  const header = ['Cliente','CPF','Telefone','Banco','Valor','Operador','Etapa','Protocolo 1','Data protocolo 1','Data boleto','Protocolo 2','Data protocolo 2','Data liberacao','Observacoes'];
+  const rows = casos.map(c=>{
+    const etapaLabel = (ETAPAS.find(e=>e.id===c.etapa)||{}).label || c.etapa;
+    return [c.cliente, c.cpf, c.telefone, c.banco, String(c.valor||0).replace('.',','), c.operador, etapaLabel,
+      c.protocolo1, fmtData(c.data_protocolo1), fmtData(c.data_boleto), c.protocolo2, fmtData(c.data_protocolo2), fmtData(c.data_liberacao), c.obs]
+      .map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(';');
+  });
+  const csv = header.join(';')+'\n'+rows.join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'fila-pkl-master-'+hojeISO()+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ================= init ================= */
+async function init(){
+  const precisaConfigurar = !SUPABASE_URL || !SUPABASE_KEY ||
+    SUPABASE_URL.indexOf('COLE_AQUI')===0 || SUPABASE_KEY.indexOf('COLE_AQUI')===0;
+  if(precisaConfigurar){
+    document.getElementById('app').innerHTML = `
+      <div class="setup-screen"><div class="card">
+        <h1>Configuração pendente</h1>
+        <p>Abra este arquivo num editor de texto e substitua as duas constantes no topo do &lt;script&gt;:</p>
+        <p><code>SUPABASE_URL</code> e <code>SUPABASE_KEY</code> — pegue os dois valores em
+        Project Settings → API (ou → API Keys) no seu painel do Supabase.</p>
+        <p>Depois de editar, salve e abra o arquivo de novo.</p>
+      </div></div>`;
+    return;
+  }
+  try{
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    state.casos = await carregarCasos();
+    render();
+    setInterval(()=>{ refreshFromDB().catch(e=>toast('Erro ao atualizar: '+(e&&e.message?e.message:e), true)); }, 15000);
+  }catch(e){
+    document.getElementById('app').innerHTML = `<div class="loading-state">Não consegui conectar ao banco: ${esc(e && e.message ? e.message : e)}. Confira a URL, a chave, e se a tabela "casos" existe e está exposta na Data API do Supabase.</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
